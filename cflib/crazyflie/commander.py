@@ -40,6 +40,7 @@ TYPE_VELOCITY_WORLD = 1
 TYPE_ZDISTANCE = 2
 TYPE_HOVER = 5
 TYPE_POSITION = 7
+TYPE_LQR = 8
 
 
 class Commander():
@@ -141,4 +142,37 @@ class Commander():
         pk.port = CRTPPort.COMMANDER_GENERIC
         pk.data = struct.pack('<Bffff', TYPE_POSITION,
                               x, y, z, yaw)
+        self._cf.send_packet(pk)
+
+    def send_LQR_setpoint(self, x_c):
+        """
+        24 bytes
+        The command sent to the crazyflie is the state vector x_c
+        [x y z phi theta psi dx dy dz]
+
+        The crazyflie expects units of mm and rad to be able to
+        compress the floats into int_16t and send over crazyradio
+        """
+
+        pk = CRTPPacket()
+        pk.port = CRTPPort.COMMANDER_GENERIC
+
+        # Encode postion [x y z] to mm
+        x = int(x_c[0]*1000.0)
+        y = int(x_c[1]*1000.0)
+        z = int(x_c[2]*1000.0)
+
+        # Encode attitude [phi theta psi] to rad
+        roll = x_c[3]
+        pitch = x_c[4]
+        yaw = x_c[5]
+
+        # Encode velocity [vx vy vz] to mm/s
+        vx = int(x_c[6]*1000.0)
+        vy = int(x_c[7]*1000.0)
+        vz = int(x_c[8]*1000.0)
+
+        pk.data = struct.pack('<Bhhhfffhhh', TYPE_LQR, x, y, z,
+                              roll, pitch, yaw, vx, vy, vz)
+
         self._cf.send_packet(pk)
