@@ -148,9 +148,10 @@ class Commander():
         """
         24 bytes
         The command sent to the crazyflie is the state vector x_c
-        [x y z phi theta psi dx dy dz]
+        [x y z phi theta psi dx dy dz] in m, m/s and rad
 
-        The crazyflie expects units of mm and rad to be able to
+        This function encodes the state vector because
+        the crazyflie expects units of mm and rad to be able to
         compress the floats into int_16t and send over crazyradio
         """
 
@@ -162,7 +163,7 @@ class Commander():
         y = int(x_c[1]*1000.0)
         z = int(x_c[2]*1000.0)
 
-        # Encode attitude [phi theta psi] to rad
+        # Encode attitude [phi theta psi]
         roll = x_c[3]
         pitch = x_c[4]
         yaw = x_c[5]
