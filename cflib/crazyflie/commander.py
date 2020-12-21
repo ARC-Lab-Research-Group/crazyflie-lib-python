@@ -163,17 +163,26 @@ class Commander():
         y = int(x_c[1]*1000.0)
         z = int(x_c[2]*1000.0)
 
-        # Encode attitude [phi theta psi]
-        roll = x_c[3]
-        pitch = x_c[4]
-        yaw = x_c[5]
+        # Encode attitude [phi theta psi] to millirad
+        roll = int(x_c[3]*1000)
+        pitch = int(x_c[4]*1000)
+        yaw = int(x_c[5]*1000)
 
         # Encode velocity [vx vy vz] to mm/s
         vx = int(x_c[6]*1000.0)
         vy = int(x_c[7]*1000.0)
         vz = int(x_c[8]*1000.0)
 
-        pk.data = struct.pack('<Bhhhfffhhh', TYPE_LQR, x, y, z,
-                              roll, pitch, yaw, vx, vy, vz)
+        # Encode thrust to mm/s^2
+        thrust = int(x_c[9]*1000.0)
+
+        # Encode angular velocity [p q r] to millirad/s
+        p = int(x_c[10]*1000.0)
+        q = int(x_c[11]*1000.0)
+        r = int(x_c[12]*1000.0)
+
+        pk.data = struct.pack('<Bhhhhhhhhhhhhh', TYPE_LQR, x, y, z,
+                              roll, pitch, yaw, vx, vy, vz,
+                              thrust, p, q, r)
 
         self._cf.send_packet(pk)
