@@ -146,9 +146,10 @@ class Commander():
 
     def send_LQR_setpoint(self, x_c):
         """
-        24 bytes
-        The command sent to the crazyflie is the state vector x_c
+        26 bytes
+        The command sent to the crazyflie is the state vector
         [x y z phi theta psi dx dy dz] in m, m/s and rad
+        and the nominal input [T p q r]
 
         This function encodes the state vector because
         the crazyflie expects units of mm and rad to be able to
