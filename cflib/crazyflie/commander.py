@@ -187,3 +187,32 @@ class Commander():
                               thrust, p, q, r)
 
         self._cf.send_packet(pk)
+
+    def send_SDLQR_row_K(self, row, data):
+        """
+        19 bytes
+        Send a row of the Kalman Gain matrix to the Crazyflie
+        The row is packed as a uint8_t and the data for each
+        entry of K is compressed (x1000) into int16_t[9]
+
+        """
+        # Check the row is valid [0,3]
+        if not isinstance(row,int) or row > 3 or row < 0:
+            raise ValueError('Row must be a valid integer between 0 and 3')
+        # Check length of data tuple
+        if len(a) != 9:
+            raise ValueError('Expected 9 entries in data tuple for K matrix')
+
+        # Init packet
+        pk = CRTPPacket()
+        pk.port = CRTPPort.COMMANDER_SDLQR
+
+        # Compress the data tuple
+        for i in range(len(a)):
+            data[i] = int(data[i]*1000.0)
+
+        # Populate packet and send
+        pk.data = struct.pack('<BBhhhhhhhhh', row, data[0], data[1], data[2],
+                                                   data[3], data[4], data[5],
+                                                   data[6], data[7], data[8])
+        self._cf.send_packet(pk)
