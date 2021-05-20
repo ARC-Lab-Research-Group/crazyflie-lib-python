@@ -200,7 +200,7 @@ class Commander():
         if not isinstance(row,int) or row > 3 or row < 0:
             raise ValueError('Row must be a valid integer between 0 and 3')
         # Check length of data tuple
-        if len(a) != 9:
+        if len(data) != 9:
             raise ValueError('Expected 9 entries in data tuple for K matrix')
 
         # Init packet
@@ -208,11 +208,12 @@ class Commander():
         pk.port = CRTPPort.COMMANDER_SDLQR
 
         # Compress the data tuple
-        for i in range(len(a)):
-            data[i] = int(data[i]*1000.0)
+        data_c = [] # Declare compressed data array
+        for i in range(len(data)):
+            data_c.append(int(data[i]*1000.0))
 
         # Populate packet and send
-        pk.data = struct.pack('<BBhhhhhhhhh', row, data[0], data[1], data[2],
-                                                   data[3], data[4], data[5],
-                                                   data[6], data[7], data[8])
+        pk.data = struct.pack('<Bhhhhhhhhh', row, data_c[0], data_c[1], data_c[2],
+                                                   data_c[3], data_c[4], data_c[5],
+                                                   data_c[6], data_c[7], data_c[8])
         self._cf.send_packet(pk)
