@@ -35,9 +35,9 @@ Currently only *radio* and *debug* interfaces are used but there\'s
 ideas for more like *udp*, *serial*, *usb*, etc\...Here are some
 examples:
 
--   \%%Radio interface, USB dongle number 0, radio channel 10 and radio
-    speed 250 Kbit/s: radio://0/10/250K %%
--   Debug interface, id 0, channel 1: debug://0/1
+-   _radio://0/10/250K_ : Radio interface, USB dongle number 0, radio channel 10 and radio
+    speed 250 Kbit/s: radio://0/10/250K 
+-   _debug://0/1_ : Debug interface, id 0, channel 1
 
 ### Variables and logging
 
@@ -62,10 +62,9 @@ following way:
 
 There\'s a few limitations that needs to be taken into account:
 
--   Each packet is limited to 32bytes, which means that the data that is
-    logged and the packet that is sent to set it up cannot be larger
-    than this. It limits the logging to about 14 variables, but this is
-    dependent on what types they are
+-   The maximum byte lenght for a log packet is of 26 bytes. This for
+    for example allows to log 6 floats and one uint16_t (6*4 + 2 bytes)
+    in a single packet.
 -   The minimum period of a for a log configuration is multiples of 10ms
 
 ### Parameters
@@ -114,7 +113,7 @@ There\'s a limit of 28 chars in total and here are some examples:
 All callbacks are handled using the `Caller` class that contains the
 following methods:
 
-``` {.python}
+``` python
     add_callback(cb)
         """ Register cb as a new callback. Will not register duplicates. """
 
@@ -124,33 +123,14 @@ following methods:
     call(*args)
         """ Call the callbacks registered with the arguments args """
 ```
-
-### Debug driver
-
-The library contains a special link driver, named `DebugDriver`. This
-driver will emulate a Crazyflie and is used for testing of the UI and
-library. Normally this will be hidden from the user except if explicitly
-enabled in the configuration file. The driver supports the following:
-
--   Connecting a download param and log TOCs
--   Setting up log configurations and sending back fake data
--   Setting and reading parameters
--   Bootloading
-
-There are a number of different URIs that will be returned from the
-driver. These will have different functions, like always returning a
-random TOC CRC to always trigger TOC downloading or failing during
-connect. The driver also has support for sending back data with random
-delays to trigger random re-sending by the library.
-
 ## Initiating the link drivers
 
 Before the library can be used the link drivers have to he initialized.
 This will search for available drivers and instantiate them.
 
-``` {.python}
-    init_drivers(enable_debug_driver=False)
-       """ Search for and initialize link drivers. If enable_debug_driver is True then the DebugDriver will also be used."""
+``` python
+    init_drivers()
+       """ Search for and initialize link drivers."""
 ```
 
 ### Serial driver
@@ -158,7 +138,7 @@ This will search for available drivers and instantiate them.
 The serial driver is disabled by default and has to be enabled to
 be used. Enable it in the call to `init_drivers()`
 
-``` {.python}
+``` python
     init_drivers(enable_serial_driver=True)
 ```
 
@@ -167,7 +147,7 @@ be used. Enable it in the call to `init_drivers()`
 Operations on the link and connection will return directly and will call
 the following callbacks when events occur:
 
-``` {.python}
+``` python
     # Called on disconnect, no matter the reason
     disconnected = Caller()
     # Called on unintentional disconnect only
@@ -191,7 +171,7 @@ the following callbacks when events occur:
 
 To register for callbacks the following is used:
 
-``` {.python}
+``` python
     crazyflie = Crazyflie()
     crazyflie.connected.add_callback(crazyflie_connected)
 ```
@@ -202,7 +182,7 @@ The first thing to do is to find a Crazyflie quadcopter that we can
 connect to. This is done by queuing the library that will scan all the
 available interfaces (currently the debug and radio interface).
 
-``` {.python}
+``` python
     cflib.crtp.init_drivers()
     available = cflib.crtp.scan_interfaces()
     for i in available:
@@ -212,7 +192,7 @@ available interfaces (currently the debug and radio interface).
 Opening and closing a communication link is doing by using the Crazyflie
 object:
 
-``` {.python}
+``` python
     crazyflie = Crazyflie()
     crazyflie.connected.add_callback(crazyflie_connected)
     crazyflie.open_link("radio://0/10/250K")
@@ -220,7 +200,7 @@ object:
 
 Then you can use the following to close the link again:
 
-``` {.python}
+``` python
     crazyflie.close_link()
 ```
 
@@ -229,7 +209,7 @@ Then you can use the following to close the link again:
 The control setpoints are not implemented as parameters, instead they
 have a special API.
 
-``` {.python}
+``` python
     send_setpoint(roll, pitch, yaw, thrust):
         """
         Send a new control set-point for roll/pitch/yaw/thust to the copter
@@ -241,7 +221,7 @@ have a special API.
 
 To send a new control set-point use the following:
 
-``` {.python}
+``` python
     roll    = 0.0
     pitch   = 0.0
     yawrate = 0
@@ -281,7 +261,7 @@ instead.
 To set a parameter you have to the connected to the Crazyflie. A
 parameter is set using:
 
-``` {.python}
+``` python
     param_name = "group.name"
     param_value = 3
     crazyflie.param.set_value(param_name, param_value)
@@ -293,7 +273,7 @@ back by the library and this will trigger the callbacks. Parameter
 callbacks can be added at any time (you don\'t have to be connected to a
 Crazyflie).
 
-``` {.python}
+``` python
     add_update_callback(group, name=None, cb=None)
         """
         Add a callback for a specific parameter name or group. If not name is specified then
@@ -310,7 +290,7 @@ Crazyflie).
 
 Here\'s an example of how to use the calls.
 
-``` {.python}
+``` python
     crazyflie.param.add_update_callback(group="group", name="name", param_updated_callback)
 
     def param_updated_callback(name, value):
@@ -332,7 +312,7 @@ instead.
 
 The API to create and get information from LogConfig:
 
-``` {.python}
+``` python
     # Called when new logging data arrives
     data_received_cb = Caller()
     # Called when there's an error
@@ -365,7 +345,7 @@ The API to create and get information from LogConfig:
 
 The API for the log in the Crazyflie:
 
-``` {.python}
+``` python
     add_config(logconf)
         """Add a log configuration to the logging framework.
 
@@ -379,7 +359,7 @@ The API for the log in the Crazyflie:
 
 To create a logging configuration the following can be used:
 
-``` {.python}
+``` python
     logconf = LogConfig(name="Logging", period_in_ms=100)
     logconf.add_variable("group1.name1", "float")
     logconf.add_variable("group1.name2", "uint8_t")
@@ -398,7 +378,7 @@ internal type to transferred type before transfers:
 
 The logging cannot be started until your are connected to a Crazyflie:
 
-``` {.python}
+``` python
     # Callback called when the connection is established to the Crazyflie
     def connected(link_uri):
         crazyflie.log.add_config(logconf)
@@ -425,7 +405,7 @@ can be used in one logging configuration. If the desired log variables
 do not fit in one logging configuration, a second cofiguration may
 be added.
 
-``` {.python}
+``` python
     crazyflie.log.add_config([logconf1, logconfig2])
 ```
 
@@ -445,7 +425,7 @@ exiting it, for instance a connection or take off/landing of a Crazyflie.
 The SyncCrazyflie class wrapps a Crazyflie instance and mainly simplifies connect/disconnect.
 
 Basic usage
-``` {.python}
+``` python
     with SyncCrazyflie(uri) as scf:
         # A Crazyflie instance is created and is now connected. If the connection failes,
         # an exception is raised.
@@ -460,7 +440,7 @@ Basic usage
 If some special properties are required for the underlying Crazyflie object,
 a Crazyflie instance can be passed in to the SyncCrazyflie instance.
 
-``` {.python}
+``` python
     my_cf = Crazyflie(rw_cache='./cache')
     with SyncCrazyflie(uri, cf=my_cf) as scf:
         # The my_cf is now connected
@@ -473,7 +453,7 @@ a Crazyflie instance can be passed in to the SyncCrazyflie instance.
 The SyncLogger class wraps setting up, as well as starting/stopping logging. It works both for Crazyflie
 and SyncCrazyflie instances. To get the log values, iterate the instance.
 
-``` {.python}
+``` python
     # Connect to a Crazyflie
     with SyncCrazyflie(uri) as scf:
         # Create a log configuration
@@ -504,7 +484,7 @@ movements that are blocking until the motion is finished.
 The MotionCommander is using velocity set points and does not have a global coordinate
 system, all positions are relative. It is mainly intended to be used with a Flow deck.
 
-``` {.python}
+``` python
     with SyncCrazyflie(URI) as scf:
         # We take off when the commander is created
         with MotionCommander(scf) as mc:
@@ -526,7 +506,7 @@ The PositionHlCommander uses the high level commander in the Crazyflie and is
 based on a global coordinate system and absolute positoinins. It is inteneded
 to be used with a positioning system such as LPS, the lighthouse or a mocap system.
 
-``` {.python}
+``` python
     with SyncCrazyflie(URI) as scf:
         with PositionHlCommander(scf) as pc:
             # Go to the coordinate (0, 0, 1)
@@ -537,4 +517,4 @@ to be used with a positioning system such as LPS, the lighthouse or a mocap syst
 
 ## Examples
 
-The see the example folder of the repository.
+The see the [example folder of the repository](https://github.com/bitcraze/crazyflie-lib-python/tree/master/examples).

@@ -31,9 +31,10 @@ from cflib.crazyflie import Crazyflie
 from cflib.crazyflie.log import LogConfig
 from cflib.crazyflie.syncCrazyflie import SyncCrazyflie
 from cflib.positioning.motion_commander import MotionCommander
+from cflib.utils import uri_helper
 
+URI = uri_helper.uri_from_env(default='radio://0/80/2M/E7E7E7E7E7')
 
-URI = 'radio://0/80/2M/E7E7E7E7E7'
 DEFAULT_HEIGHT = 0.5
 BOX_LIMIT = 0.5
 
@@ -95,9 +96,10 @@ def log_pos_callback(timestamp, data, logconf):
     position_estimate[1] = data['stateEstimate.y']
 
 
-def param_deck_flow(name, value):
-    global is_deck_attached
+def param_deck_flow(name, value_str):
+    value = int(value_str)
     print(value)
+    global is_deck_attached
     if value:
         is_deck_attached = True
         print('Deck is attached!')
@@ -107,7 +109,7 @@ def param_deck_flow(name, value):
 
 
 if __name__ == '__main__':
-    cflib.crtp.init_drivers(enable_debug_driver=False)
+    cflib.crtp.init_drivers()
 
     with SyncCrazyflie(URI, cf=Crazyflie(rw_cache='./cache')) as scf:
 
@@ -126,5 +128,5 @@ if __name__ == '__main__':
 
             # take_off_simple(scf)
             # move_linear_simple(scf)
-            move_box_limit(scf)
-            logconf.stop()
+            # move_box_limit(scf)
+            # logconf.stop()

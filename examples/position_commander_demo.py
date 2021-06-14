@@ -35,9 +35,10 @@ import cflib.crtp
 from cflib.crazyflie import Crazyflie
 from cflib.crazyflie.syncCrazyflie import SyncCrazyflie
 from cflib.positioning.position_hl_commander import PositionHlCommander
+from cflib.utils import uri_helper
 
 # URI to the Crazyflie to connect to
-uri = 'radio://0/80/2M/E7E7E7E7E7'
+uri = uri_helper.uri_from_env(default='radio://0/80/2M/E7E7E7E7E7')
 
 
 def slightly_more_complex_usage():
@@ -47,7 +48,7 @@ def slightly_more_complex_usage():
                 x=0.0, y=0.0, z=0.0,
                 default_velocity=0.3,
                 default_height=0.5,
-                controller=PositionHlCommander.CONTROLLER_MELLINGER) as pc:
+                controller=PositionHlCommander.CONTROLLER_PID) as pc:
             # Go to a coordinate
             pc.go_to(1.0, 1.0, 1.0)
 
@@ -66,6 +67,15 @@ def slightly_more_complex_usage():
             pc.go_to(0.0, 0.0)
 
 
+def land_on_elevated_surface():
+    with SyncCrazyflie(uri, cf=Crazyflie(rw_cache='./cache')) as scf:
+        with PositionHlCommander(scf, default_height=0.5, default_velocity=0.2, default_landing_height=0.35) as pc:
+            # fly onto a landing platform at non-zero height (ex: from floor to desk, etc)
+            pc.forward(1.0)
+            pc.left(1.0)
+            # land() will be called on context exit, gradually lowering to default_lanidng_height, then stoppig motors
+
+
 def simple_sequence():
     with SyncCrazyflie(uri, cf=Crazyflie(rw_cache='./cache')) as scf:
         with PositionHlCommander(scf) as pc:
@@ -76,7 +86,8 @@ def simple_sequence():
 
 
 if __name__ == '__main__':
-    cflib.crtp.init_drivers(enable_debug_driver=False)
+    cflib.crtp.init_drivers()
 
     simple_sequence()
     # slightly_more_complex_usage()
+    # land_on_elevated_surface()

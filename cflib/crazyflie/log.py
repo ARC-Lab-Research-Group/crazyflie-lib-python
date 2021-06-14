@@ -143,6 +143,9 @@ class LogConfig(object):
     """Representation of one log configuration that enables logging
     from the Crazyflie"""
 
+    # Maximum log payload length (4 bytes are used for block id and timestamp)
+    MAX_LEN = 26
+
     def __init__(self, name, period_in_ms):
         """Initialize the entry"""
         self.data_received_cb = Caller()
@@ -160,6 +163,7 @@ class LogConfig(object):
         self.period_in_ms = period_in_ms
         self._added = False
         self._started = False
+        self.pending = False
         self.valid = False
         self.variables = []
         self.default_fetch_as = []
@@ -261,6 +265,29 @@ class LogConfig(object):
         command = self._cmd_create_block()
         next_to_add = 0
         is_done = False
+
+        num_variables = 0
+        pending = 0
+        for block in self.cf.log.log_blocks:
+            if block.pending or block.added or block.started:
+                pending += 1
+                num_variables += len(block.variables)
+
+        if pending < Log.MAX_BLOCKS:
+            #
+            # The Crazyflie firmware can only handle 128 variables before
+            # erroring out with ENOMEM.
+            #
+            if num_variables + len(self.variables) > Log.MAX_VARIABLES:
+                raise AttributeError(
+                    ('Adding this configuration would exceed max number '
+                     'of variables (%d)' % Log.MAX_VARIABLES)
+                )
+        else:
+            raise AttributeError(
+                'Configuration has max number of blocks (%d)' % Log.MAX_BLOCKS
+            )
+        self.pending += 1
         while not is_done:
             pk = CRTPPacket()
             pk.set_header(5, CHAN_SETTINGS)
@@ -340,7 +367,7 @@ class LogTocElement:
              0x04: ('int8_t', '<b', 1),
              0x05: ('int16_t', '<h', 2),
              0x06: ('int32_t', '<i', 4),
-             0x08: ('FP16', '<h', 2),
+             0x08: ('FP16', '<e', 2),
              0x07: ('float', '<f', 4)}
 
     @staticmethod
@@ -397,6 +424,9 @@ class LogTocElement:
 
 class Log():
     """Create log configuration"""
+
+    MAX_BLOCKS = 16
+    MAX_VARIABLES = 128
 
     # These codes can be decoded using os.stderror, but
     # some of the text messages will look very strange
@@ -474,7 +504,7 @@ class Log():
                     logconf.valid = False
                     raise KeyError('Variable {} not in TOC'.format(var.name))
 
-        if (size <= CRTPPacket.MAX_DATA_SIZE and
+        if (size <= LogConfig.MAX_LEN and
                 (logconf.period > 0 and logconf.period < 0xFF)):
             logconf.valid = True
             logconf.cf = self.cf
@@ -531,6 +561,7 @@ class Log():
                             self.cf.send_packet(pk, expected_reply=(
                                 CMD_START_LOGGING, id))
                             block.added = True
+                            block.pending = False
                     else:
                         msg = self._err_codes[error_status]
                         logger.warning('Error %d when adding id=%d (%s)',

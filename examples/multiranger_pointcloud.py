@@ -61,6 +61,7 @@ from vispy.scene.cameras import TurntableCamera
 import cflib.crtp
 from cflib.crazyflie import Crazyflie
 from cflib.crazyflie.log import LogConfig
+from cflib.utils import uri_helper
 
 try:
     from sip import setapi
@@ -73,7 +74,7 @@ from PyQt5 import QtCore, QtWidgets
 
 logging.basicConfig(level=logging.INFO)
 
-URI = 'radio://0/80/2M'
+URI = uri_helper.uri_from_env(default='radio://0/80/2M/E7E7E7E7E7')
 
 if len(sys.argv) > 1:
     URI = sys.argv[1]
@@ -102,7 +103,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.setCentralWidget(self.canvas.native)
 
-        cflib.crtp.init_drivers(enable_debug_driver=False)
+        cflib.crtp.init_drivers()
         self.cf = Crazyflie(ro_cache=None, rw_cache='cache')
 
         # Connect callbacks from the Crazyflie API

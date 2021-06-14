@@ -35,16 +35,18 @@ import time
 
 import cflib.crtp
 from cflib.crazyflie.syncCrazyflie import SyncCrazyflie
+from cflib.utils import uri_helper
 
-URI = 'radio://0/80/250K'
+# URI to the Crazyflie to connect to
+URI = uri_helper.uri_from_env(default='radio://0/80/2M/E7E7E7E7E7')
 
 # Only output errors from the logging framework
 logging.basicConfig(level=logging.ERROR)
 
 
 if __name__ == '__main__':
-    # Initialize the low-level drivers (don't list the debug drivers)
-    cflib.crtp.init_drivers(enable_debug_driver=False)
+    # Initialize the low-level drivers
+    cflib.crtp.init_drivers()
 
     with SyncCrazyflie(URI) as scf:
         cf = scf.cf

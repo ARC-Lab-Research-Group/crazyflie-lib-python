@@ -49,9 +49,10 @@ import cflib.crtp
 from cflib.crazyflie import Crazyflie
 from cflib.crazyflie.syncCrazyflie import SyncCrazyflie
 from cflib.positioning.motion_commander import MotionCommander
+from cflib.utils import uri_helper
 from cflib.utils.multiranger import Multiranger
 
-URI = 'radio://0/80/2M'
+URI = uri_helper.uri_from_env(default='radio://0/80/2M/E7E7E7E7E7')
 
 if len(sys.argv) > 1:
     URI = sys.argv[1]
@@ -70,8 +71,8 @@ def is_close(range):
 
 
 if __name__ == '__main__':
-    # Initialize the low-level drivers (don't list the debug drivers)
-    cflib.crtp.init_drivers(enable_debug_driver=False)
+    # Initialize the low-level drivers
+    cflib.crtp.init_drivers()
 
     cf = Crazyflie(rw_cache='./cache')
     with SyncCrazyflie(URI, cf=cf) as scf:

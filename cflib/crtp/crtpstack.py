@@ -49,7 +49,6 @@ class CRTPPort:
     SETPOINT_HL = 0x08
     COMMANDER_SDLQR = 0x09
     PLATFORM = 0x0D
-    DEBUGDRIVER = 0x0E
     LINKCTRL = 0x0F
     ALL = 0xFF
 

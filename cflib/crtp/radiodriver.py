@@ -148,11 +148,15 @@ class _SharedRadio(Thread):
         self._devid = devid
         self.version = self._radio.version
 
+        self.name = 'Shared Radio'
+
         self._cmd_queue = Queue()  # type: Queue[Tuple[int, _RadioCommands, Any]]  # noqa
         self._rsp_queues = {}  # type: Dict[int, Queue[Any]]
         self._next_instance_id = 0
 
         self._lock = Semaphore(1)
+
+        self.setDaemon(True)
 
         self.start()
 
@@ -162,10 +166,14 @@ class _SharedRadio(Thread):
             instance_id = self._next_instance_id
             self._rsp_queues[instance_id] = rsp_queue
             self._next_instance_id += 1
+
+            if self._radio is None:
+                self._radio = Crazyradio(devid=self._devid)
+
         return _SharedRadioInstance(instance_id,
                                     self._cmd_queue,
                                     rsp_queue,
-                                    self._radio.version)
+                                    self.version)
 
     def run(self):
         while True:
@@ -176,8 +184,7 @@ class _SharedRadio(Thread):
                     del self._rsp_queues[command[0]]
                     if len(self._rsp_queues) == 0:
                         self._radio.close()
-                        _RadioManager.remove(self._devid)
-                        return
+                        self._radio = None
             elif command[1] == _RadioCommands.SEND_PACKET:
                 channel, address, datarate, data = command[2]
                 self._radio.set_channel(channel)
@@ -201,28 +208,28 @@ class _SharedRadio(Thread):
                 self._rsp_queues[command[0]].put(resp)
 
 
-class _RadioManager:
+class RadioManager:
     _radios = []  # type: List[Union[_SharedRadio, None]]
     _lock = Semaphore(1)
 
     @staticmethod
     def open(devid: int) -> _SharedRadioInstance:
-        with _RadioManager._lock:
-            if len(_RadioManager._radios) <= devid:
-                padding = [None] * (devid - len(_RadioManager._radios) + 1)
-                _RadioManager._radios.extend(padding)
+        with RadioManager._lock:
+            if len(RadioManager._radios) <= devid:
+                padding = [None] * (devid - len(RadioManager._radios) + 1)
+                RadioManager._radios.extend(padding)
 
-            shared_radio = _RadioManager._radios[devid]
+            shared_radio = RadioManager._radios[devid]
             if not shared_radio:
                 shared_radio = _SharedRadio(devid)
-                _RadioManager._radios[devid] = shared_radio
+                RadioManager._radios[devid] = shared_radio
 
-        return shared_radio.open_instance()
+            return shared_radio.open_instance()
 
     @staticmethod
     def remove(devid: int):
-        with _RadioManager._lock:
-            _RadioManager._radios[devid] = None
+        with RadioManager._lock:
+            RadioManager._radios[devid] = None
 
 
 class RadioDriver(CRTPDriver):
@@ -255,7 +262,7 @@ class RadioDriver(CRTPDriver):
         self.uri = uri
 
         if self._radio is None:
-            self._radio = _RadioManager.open(devid)
+            self._radio = RadioManager.open(devid)
             self._radio.set_channel(channel)
             self._radio.set_data_rate(datarate)
             self._radio.set_address(address)
@@ -291,11 +298,11 @@ class RadioDriver(CRTPDriver):
 
         # Open the USB dongle
         if not re.search('^radio://([0-9a-fA-F]+)((/([0-9]+))'
-                         '((/(250K|1M|2M))?(/([A-F0-9]+))?)?)?$', uri):
+                         '((/(250K|1M|2M))?(/([A-F0-9]+))?)?)?(\\?.+)?$', uri):
             raise WrongUriType('Wrong radio URI format!')
 
         uri_data = re.search('^radio://([0-9a-fA-F]+)((/([0-9]+))'
-                             '((/(250K|1M|2M))?(/([A-F0-9]+))?)?)?$', uri)
+                             '((/(250K|1M|2M))?(/([A-F0-9]+))?)?)?(\\?.+)?$', uri)
 
         if len(uri_data.group(1)) < 10 and uri_data.group(1).isdigit():
             devid = int(uri_data.group(1))
@@ -321,41 +328,45 @@ class RadioDriver(CRTPDriver):
 
         address = DEFAULT_ADDR_A
         if uri_data.group(9):
-            addr = str(uri_data.group(9))
+            # We make sure to pad the address with zeros if we do not have the
+            # correct length.
+            addr = '{:0>10}'.format(uri_data.group(9))
             new_addr = struct.unpack('<BBBBB', binascii.unhexlify(addr))
             address = new_addr
 
         return devid, channel, datarate, address
 
-    def receive_packet(self, time=0):
+    def receive_packet(self, wait=0):
         """
         Receive a packet though the link. This call is blocking but will
         timeout and return None if a timeout is supplied.
         """
-        if time == 0:
+        if wait == 0:
             try:
                 return self.in_queue.get(False)
             except queue.Empty:
                 return None
-        elif time < 0:
+        elif wait < 0:
             try:
                 return self.in_queue.get(True)
             except queue.Empty:
                 return None
         else:
             try:
-                return self.in_queue.get(True, time)
+                return self.in_queue.get(True, wait)
             except queue.Empty:
                 return None
 
-    def send_packet(self, pk):
+    def send_packet(self, pk) -> bool:
         """ Send the packet pk though the link """
         try:
             self.out_queue.put(pk, True, 2)
+            return True
         except queue.Full:
             if self.link_error_callback:
                 self.link_error_callback('RadioDriver: Could not send packet'
                                          ' to copter')
+            return False
 
     def pause(self):
         self._thread.stop()
@@ -399,7 +410,7 @@ class RadioDriver(CRTPDriver):
         for link in links:
             one_to_scan = {}
             uri_data = re.search('^radio://([0-9]+)((/([0-9]+))'
-                                 '(/(250K|1M|2M))?)?$',
+                                 '(/(250K|1M|2M))?)?',
                                  link)
 
             one_to_scan['channel'] = int(uri_data.group(4))
@@ -437,7 +448,7 @@ class RadioDriver(CRTPDriver):
 
         if self._radio is None:
             try:
-                self._radio = _RadioManager.open(0)
+                self._radio = RadioManager.open(0)
             except Exception as e:
                 print(e)
                 return []
@@ -450,7 +461,8 @@ class RadioDriver(CRTPDriver):
         found = []
 
         if address is not None:
-            addr = '{:X}'.format(address)
+            # We make sure to pad the address with zeroes to get correct length
+            addr = '{:0>10X}'.format(address)
             new_addr = struct.unpack('<BBBBB', binascii.unhexlify(addr))
             self._radio.set_address(new_addr)
 
@@ -484,7 +496,7 @@ class RadioDriver(CRTPDriver):
 
     def get_status(self):
         try:
-            radio = _RadioManager.open(0)
+            radio = RadioManager.open(0)
 
             ver = radio.version
 

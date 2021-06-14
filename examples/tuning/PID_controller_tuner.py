@@ -41,8 +41,10 @@ from cflib.crazyflie import Crazyflie
 from cflib.crazyflie.log import LogConfig
 from cflib.crazyflie.syncCrazyflie import SyncCrazyflie
 from cflib.crazyflie.syncLogger import SyncLogger
+from cflib.utils import uri_helper
 
-URI = 'radio://0/30/2M/E7E7E7E702'
+# URI to the Crazyflie to connect to
+URI = uri_helper.uri_from_env(default='radio://0/80/2M/E7E7E7E7E7')
 STANDARD_HEIGHT = 0.8
 STEP_RESPONSE_TIME = 3.0
 STEP_SIZE = -0.2  # meters
@@ -386,7 +388,7 @@ if __name__ == '__main__':
     root = tk.Tk()
     pid_gui = TunerGUI(root)
 
-    cflib.crtp.init_drivers(enable_debug_driver=False)
+    cflib.crtp.init_drivers()
     cf = Crazyflie(rw_cache='./cache')
     with SyncCrazyflie(URI, cf) as scf:
         wait_for_position_estimator(scf)

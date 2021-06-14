@@ -25,7 +25,7 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA  02110-1301, USA.
 """
-Enables flash access to the Crazyflie.
+Enables access to the Crazyflie memory subsystem.
 
 """
 import errno
@@ -33,11 +33,13 @@ import logging
 import struct
 from threading import Lock
 
+from .deck_memory import DeckMemoryManager
 from .i2c_element import I2CElement
 from .led_driver_memory import LEDDriverMemory
 from .led_timings_driver_memory import LEDTimingsDriverMemory
 from .lighthouse_memory import LighthouseBsCalibration
 from .lighthouse_memory import LighthouseBsGeometry
+from .lighthouse_memory import LighthouseMemHelper
 from .lighthouse_memory import LighthouseMemory
 from .loco_memory import LocoMemory
 from .loco_memory_2 import LocoMemory2
@@ -52,7 +54,8 @@ from cflib.utils.callbacks import Caller
 
 __author__ = 'Bitcraze AB'
 __all__ = ['Memory', 'Poly4D', 'MemoryElement',
-           'LighthouseBsGeometry', 'LighthouseBsCalibration']
+           'LighthouseBsGeometry', 'LighthouseBsCalibration', 'LighthouseMemHelper',
+           'DeckMemoryManager']
 
 # Channels used for the logging port
 CHAN_INFO = 0
@@ -465,6 +468,13 @@ class Memory():
                         logger.debug(mem)
                         self.mem_read_cb.add_callback(mem.new_data)
                         self.mem_write_cb.add_callback(mem.write_done)
+                    elif mem_type == MemoryElement.TYPE_DECK_MEMORY:
+                        mem = DeckMemoryManager(id=mem_id, type=mem_type, size=mem_size, mem_handler=self)
+                        logger.debug(mem)
+                        self.mem_read_cb.add_callback(mem._new_data)
+                        self.mem_read_failed_cb.add_callback(mem._new_data_failed)
+                        self.mem_write_cb.add_callback(mem._write_done)
+                        self.mem_write_failed_cb.add_callback(mem._write_failed)
                     else:
                         mem = MemoryElement(id=mem_id, type=mem_type,
                                             size=mem_size, mem_handler=self)
@@ -505,13 +515,15 @@ class Memory():
             # Find the read request
             if id in self._write_requests:
                 self._write_requests_lock.acquire()
+                do_call_sucess_cb = False
+                do_call_fail_cb = False
                 wreq = self._write_requests[id][0]
                 if status == 0:
                     if wreq.write_done(addr):
                         # self._write_requests.pop(id, None)
                         # Remove the first item
                         self._write_requests[id].pop(0)
-                        self.mem_write_cb.call(wreq.mem, wreq.addr)
+                        do_call_sucess_cb = True
 
                         # Get a new one to start (if there are any)
                         if len(self._write_requests[id]) > 0:
@@ -521,13 +533,20 @@ class Memory():
                         'Status {}: write failed.'.format(status))
                     # Remove from queue
                     self._write_requests[id].pop(0)
-                    self.mem_write_failed_cb.call(wreq.mem, wreq.addr)
+                    do_call_fail_cb = True
 
                     # Get a new one to start (if there are any)
                     if len(self._write_requests[id]) > 0:
                         self._write_requests[id][0].start()
 
                 self._write_requests_lock.release()
+
+                # Call callbacks after the lock has been released to alow for new writes
+                # to be initiated from the callback.
+                if do_call_sucess_cb:
+                    self.mem_write_cb.call(wreq.mem, wreq.addr)
+                if do_call_fail_cb:
+                    self.mem_write_failed_cb.call(wreq.mem, wreq.addr)
 
         if chan == CHAN_READ:
             id = cmd
