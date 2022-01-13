@@ -1,14 +1,22 @@
 #!/usr/bin/env python3
+from pathlib import Path
+
 from setuptools import find_packages
 from setuptools import setup
+# read the contents of README.md file fo use in pypi description
+directory = Path(__file__).parent
+long_description = (directory / 'README.md').read_text()
 
 setup(
     name='cflib',
-    version='0.1.15',
+    version='0.1.16',
     packages=find_packages(exclude=['examples', 'tests']),
 
     description='Crazyflie python driver',
     url='https://github.com/bitcraze/crazyflie-lib-python',
+
+    long_description=long_description,
+    long_description_content_type='text/markdown',
 
     author='Bitcraze and contributors',
     author_email='contact@bitcraze.io',
@@ -26,7 +34,8 @@ setup(
 
     install_requires=[
         'pyusb>=1.0.0b2',
-        'opencv-python-headless==4.5.1.48'
+        'libusb-package~=1.0',
+        'opencv-python-headless~=4.5.1'
     ],
 
     # $ pip install -e .[dev]

@@ -19,10 +19,8 @@
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU General Public License for more details.
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software
-#  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
-#  MA  02110-1301, USA.
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 A script to fly 5 Crazyflies in formation. One stays in the center and the
 other four fly around it in a circle. Mainly intended to be used with the
@@ -76,14 +74,6 @@ params = {
     URI3: [params3],
     URI4: [params4],
 }
-
-
-def reset_estimator(scf):
-    cf = scf.cf
-    cf.param.set_value('kalman.resetEstimation', '1')
-    time.sleep(0.1)
-    cf.param.set_value('kalman.resetEstimation', '0')
-    time.sleep(2)
 
 
 def poshold(cf, t, z):
@@ -146,5 +136,5 @@ if __name__ == '__main__':
 
     factory = CachedCfFactory(rw_cache='./cache')
     with Swarm(uris, factory=factory) as swarm:
-        swarm.parallel(reset_estimator)
+        swarm.reset_estimators()
         swarm.parallel(run_sequence, args_dict=params)
